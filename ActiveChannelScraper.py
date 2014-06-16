@@ -65,8 +65,14 @@ cursor.execute("""
 DELETE FROM ActiveChannelLog;
 """)
 
+# Populate table
 for a in data:
     cursor.execute("""
     insert into ActiveChannelLog (System, Channel, Filename)
     values (?,?,?);
     """, a.system, a.channel, a.filename)
+
+#close up shop
+cursor.close()
+del cursor
+cnxn.close()
