@@ -33,34 +33,40 @@ cnxn.autocommit = True
 cursor = cnxn.cursor()
 
 paths = {
-'\\\\maccor-a\\Maccor\\System\\MACCOR-A\\Active':'Maccor-a',
-'\\\\maccor-b\\Maccor\\System\\MACCOR-B\\Active':'Maccor-b',
-'\\\\maccor-m\\Maccor\\System\\MACCOR-M\\Active':'Maccor-m',
-'\\\\maccor-n\\Maccor\\System\\MACCOR-N\\Active':'Maccor-n',
-'\\\\maccor-o\\Maccor\\System\\MACCOR-O\\Active':'Maccor-o'
+'\\\\maccor-a\\Maccor\\System\\MACCOR-A\\Active':'Maccor-A',
+'\\\\maccor-b\\Maccor\\System\\MACCOR-B\\Active':'Maccor-B',
+'\\\\maccor-m\\Maccor\\System\\MACCOR-M\\Active':'Maccor-M',
+'\\\\maccor-n\\Maccor\\System\\MACCOR-N\\Active':'Maccor-N',
+'\\\\maccor-o\\Maccor\\System\\MACCOR-O\\Active':'Maccor-O'
 }
 
 data = []
 for p in paths.keys():
     for f in os.listdir(p):
-        if os.path.isfile(os.path.join(p,f)):            
+        if os.path.isfile(os.path.join(p,f)):
             system, channel, filename = ('',)*3
-            filename = f
-            m = re.search('\.([0-9]){3}', f)
-            if m:
-                channel = m.group()
-            system = paths[p] # e.g. 'Maccor-a'
+            filename, sep, channel = f.rpartition('.')
+            try:
+                channel = int(channel)
+            except:
+                print 'non-integer extension for file ', f
+#            m = re.search('\.(?P<number>[0-9]{3})', f)
+#            if m:
+#                channel = m.group('number')
+            system = paths[p] # e.g. 'Maccor-A'
             a = ActiveChannelDataPt(system, channel, filename)
             data.append(a)
 
 #for a in data:
 #    print a
     
+# Delete old records
+cursor.execute("""
+DELETE FROM ActiveChannelLog;
+""")
+
 for a in data:
     cursor.execute("""
-    merge ActiveChannelLog as T
-    using (select ?,?,?) as S (System, Channel, Filename)
-    on S.Filename = T.Filename
-    when not matched then insert(System, Channel, Filename)
-    values (S.System, S.Channel, S.Filename);
+    insert into ActiveChannelLog (System, Channel, Filename)
+    values (?,?,?);
     """, a.system, a.channel, a.filename)
