@@ -8,6 +8,8 @@ Created on Fri Jun 13 10:01:28 2014
 import pyodbc
 import os
 import re
+import sys
+#import pywin32
 
 class ActiveChannelDataPt:
     def __init__(self, system, channel, filename):
@@ -32,13 +34,35 @@ cnxn = pyodbc.connect(cnxn_str)
 cnxn.autocommit = True
 cursor = cnxn.cursor()
 
-paths = {
-'\\\\maccor-a\\Maccor\\System\\MACCOR-A\\Active':'Maccor-A',
-'\\\\maccor-b\\Maccor\\System\\MACCOR-B\\Active':'Maccor-B',
-'\\\\maccor-m\\Maccor\\System\\MACCOR-M\\Active':'Maccor-M',
-'\\\\maccor-n\\Maccor\\System\\MACCOR-N\\Active':'Maccor-N',
-'\\\\maccor-o\\Maccor\\System\\MACCOR-O\\Active':'Maccor-O'
-}
+eq_cnxn_str = """
+Driver={SQL Server Native Client 11.0};
+Server=172.16.111.235\SQLEXPRESS;
+Database=EquipmentInfo;
+UID=sa;
+PWD=Welcome!;
+"""
+eq_cnxn = pyodbc.connect(eq_cnxn_str)
+eq_cnxn.autocommit = True
+eq_cursor = eq_cnxn.cursor()
+
+paths = {}
+res = eq_cursor.execute("""
+select tester_nm from MaccorList
+where active_val = 'y'
+""").fetchall()
+
+for row in res:
+    path = '\\\\' + row[0].rstrip(' ') + '.24m.local\\Maccor\\System\\' + row[0].rstrip(' ') + '\\Active'
+    paths[path] = row[0].rstrip(' ')
+
+
+#paths = {
+#r'\\maccor-a.24m.local\Maccor\System\MACCOR-A\Active':'Maccor-A',
+#r'\\maccor-b.24m.local\Maccor\System\MACCOR-B\Active':'Maccor-B',
+#r'\\maccor-m.24m.local\Maccor\System\MACCOR-M\Active':'Maccor-M',
+#r'\\maccor-n.24m.local\Maccor\System\MACCOR-N\Active':'Maccor-N',
+#r'\\maccor-o.24m.local\Maccor\System\MACCOR-O\Active':'Maccor-O'
+#}
 
 data = []
 for p in paths.keys():
@@ -66,13 +90,19 @@ DELETE FROM ActiveChannelLog;
 """)
 
 # Populate table
+sys.stdout.write('Populating table')
 for a in data:
+    sys.stdout.write('.')
     cursor.execute("""
     insert into ActiveChannelLog (System, Channel, Filename)
     values (?,?,?);
     """, a.system, a.channel, a.filename)
+print
 
 #close up shop
 cursor.close()
 del cursor
 cnxn.close()
+eq_cursor.close()
+del eq_cursor
+eq_cnxn.close()
